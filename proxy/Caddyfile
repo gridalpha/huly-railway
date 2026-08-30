@@ -7,9 +7,13 @@
 }
 
 :{$PORT:8080} {
+	# Huly's own services report metrics through the public /_stats route every
+	# few seconds, so an access log at INFO buries every real line and pushes at
+	# Railway's 500 logs/sec ingestion cap.
 	log {
 		output stdout
 		format console
+		level ERROR
 	}
 
 	request_body {
