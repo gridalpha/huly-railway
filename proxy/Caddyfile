@@ -1,0 +1,57 @@
+{
+	admin off
+	auto_https off
+	servers {
+		trusted_proxies static 100.64.0.0/10 fd00::/8
+	}
+}
+
+:{$PORT:8080} {
+	log {
+		output stdout
+		format console
+	}
+
+	request_body {
+		max_size {$MAX_UPLOAD_SIZE:100MB}
+	}
+
+	# Liveness for Railway's own prober. Never proxy this to an upstream:
+	# a health check that tests another service fails its own first deploy.
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# Huly's account RPC endpoint. handle_path strips the /_accounts prefix and
+	# matches the bare path too, which is the one the browser actually POSTs to.
+	handle_path /_accounts* {
+		reverse_proxy {$ACCOUNT_HOST:account.railway.internal:3000}
+	}
+
+	handle_path /_collaborator* {
+		reverse_proxy {$COLLABORATOR_HOST:collaborator.railway.internal:3078}
+	}
+
+	handle_path /_transactor* {
+		reverse_proxy {$TRANSACTOR_HOST:transactor.railway.internal:3333}
+	}
+
+	handle_path /_rekoni* {
+		reverse_proxy {$REKONI_HOST:rekoni.railway.internal:4004}
+	}
+
+	handle_path /_stats* {
+		reverse_proxy {$STATS_HOST:stats.railway.internal:4900}
+	}
+
+	# The client opens its workspace websocket at /<jwt>, and every Huly token
+	# is a JWS whose base64 header starts "eyJ". Keep this above the catch-all.
+	@transactorToken path_regexp ^/eyJ
+	handle @transactorToken {
+		reverse_proxy {$TRANSACTOR_HOST:transactor.railway.internal:3333}
+	}
+
+	handle {
+		reverse_proxy {$FRONT_HOST:front.railway.internal:8080}
+	}
+}

@@ -1,0 +1,11 @@
+cluster.name: "huly"
+# Railway's private network routes IPv6 between services; the JVM never sets
+# IPV6_V6ONLY, so "::" serves both a private peer and the IPv4 health prober.
+network.host: "::"
+http.port: 9200
+# single-node discovery also bypasses the bootstrap checks, which is what makes
+# a container without a settable vm.max_map_count start at all.
+discovery.type: single-node
+node.store.allow_mmap: false
+xpack.security.enabled: false
+xpack.monitoring.collection.enabled: false
