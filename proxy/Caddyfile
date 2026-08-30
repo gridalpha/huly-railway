@@ -29,7 +29,18 @@
 	# Huly's account RPC endpoint. handle_path strips the /_accounts prefix and
 	# matches the bare path too, which is the one the browser actually POSTs to.
 	handle_path /_accounts* {
-		reverse_proxy {$ACCOUNT_HOST:account.railway.internal:3000}
+		reverse_proxy {$ACCOUNT_HOST:account.railway.internal:3000} {
+			# Huly scopes its session cookie by dropping the first label of the
+			# request host, which on Railway yields "domain=.up.railway.app".
+			# That is a Public Suffix List entry, so browsers discard the cookie
+			# silently: login returns 200 and the next page load is anonymous.
+			# Stripping the attribute makes it a host-only cookie, which is both
+			# correct here and correct behind a custom domain.
+			header_down Set-Cookie "; ?[Dd]omain=[^;]*" ""
+			# Koa only marks the cookie secure when it trusts X-Forwarded-Proto,
+			# which the image does not enable, so add the flags at the edge.
+			header_down Set-Cookie "; ?[Hh]ttp[Oo]nly" "; HttpOnly; Secure; SameSite=Lax"
+		}
 	}
 
 	handle_path /_collaborator* {
